@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <style>
+        body { font-family: Arial; text-align: center; margin: 20px; }
+        .metric { background: #f0f0f0; padding: 10px; margin: 10px; border-radius: 5px; }
+        .speed-intervals { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+        .run-history { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; }
+        .run { background: #fff; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .run h3 { margin-top: 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .run-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+        .run-grid > div { padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 14px; }
+        .completed { color: green; }
+        .incomplete { color: gray; }
+        .gps-status { padding: 15px; margin: 10px; border-radius: 5px; font-weight: bold; }
+        .gps-connected { background: #90EE90; }
+        .gps-disconnected { background: #FFB6C1; }
+        .gps-fix { background: #98FB98; }
+        .gps-no-fix { background: #FFA07A; }
+        .speed-display { font-size: 72px; font-weight: bold; margin: 20px; padding: 20px; background: #333; color: #fff; border-radius: 10px; }
+        .speed-unit { font-size: 24px; }
+        .interval { font-size: 16px; }
+        .accuracy-excellent { background: #00FF00; }
+        .accuracy-very-good { background: #90EE90; }
+        .accuracy-good { background: #FFFF00; }
+        .accuracy-moderate { background: #FFA500; }
+        .accuracy-poor { background: #FF0000; }
+        .gps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 10px; }
+        .gps-grid > div { margin: 0; }
+        .gps-location { grid-column: 1 / -1; }
+        .current-run-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 10px; }
+        .current-run-grid > div { margin: 0; }
+        .recording-status { grid-column: 1 / -1; }
+        .connection-info { background: #e8f4f8; padding: 15px; margin: 10px; border-radius: 5px; }
+        .connection-info h2 { margin-top: 0; }
+        .connection-info p { margin: 5px 0; }
+        @media (max-width: 600px) {
+            .gps-grid { grid-template-columns: repeat(2, 1fr); }
+            .current-run-grid { grid-template-columns: repeat(2, 1fr); }
+            .run-grid { grid-template-columns: repeat(2, 1fr); }
+            .gps-status, .metric { padding: 8px; margin: 5px; font-size: 14px; }
+        }
+    </style>
+    <script>
+        function updateData() {
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => {
+                    // Update speed display
+                    document.getElementById('speed').textContent = data.speed.toFixed(1);
+                    // Update GPS status
+                    document.getElementById('gps-connection').className = 'gps-status ' + (data.gpsConnected ? 'gps-connected' : 'gps-disconnected');
+                    document.getElementById('gps-connection').textContent = 'GPS Module: ' + (data.gpsConnected ? 'Connected' : 'Disconnected');
+                    document.getElementById('gps-fix').className = 'gps-status ' + (data.gpsFix ? 'gps-fix' : 'gps-no-fix');
+                    document.getElementById('gps-fix').textContent = 'GPS Fix: ' + (data.gpsFix ? 'Valid' : 'No Fix');
+                    // Update metrics
+                    document.getElementById('satellites').textContent = 'Satellites: ' + data.satellites;
+                    const accuracyClass = data.hdop < 1 ? 'accuracy-excellent' : 
+                                       data.hdop < 2 ? 'accuracy-very-good' : 
+                                       data.hdop < 5 ? 'accuracy-good' : 
+                                       data.hdop < 10 ? 'accuracy-moderate' : 'accuracy-poor';
+                    const accuracyText = data.hdop < 1 ? 'Excellent' : 
+                                      data.hdop < 2 ? 'Very Good' : 
+                                      data.hdop < 5 ? 'Good' : 
+                                      data.hdop < 10 ? 'Moderate' : 'Poor';
+                    const accuracy = document.getElementById('accuracy');
+                    accuracy.className = 'metric ' + accuracyClass;
+                    accuracy.textContent = 'Accuracy: ' + accuracyText;
+                    // Update location data
+                    const locationElements = ['latitude', 'longitude', 'altitude'];
+                    locationElements.forEach(id => {
+                        const element = document.getElementById(id);
+                        element.style.display = data.hasLocation ? 'block' : 'none';
+                    });
+                    if (data.hasLocation) {
+                        document.getElementById('latitude').textContent = 'Latitude: ' + data.latitude.toFixed(6) + '°';
+                        document.getElementById('longitude').textContent = 'Longitude: ' + data.longitude.toFixed(6) + '°';
+                        document.getElementById('altitude').textContent = 'Altitude: ' + data.altitude.toFixed(1) + ' m';
+                    }
+                    // Update run metrics
+                    document.getElementById('recording-status').style.display = data.isRecording ? 'block' : 'none';
+                    document.getElementById('road-slope').textContent = 'Road Slope: ' + data.roadSlope.toFixed(1) + '°';
+                    document.getElementById('altitude-gain').textContent = 'Altitude Gain: ' + data.altitudeGain.toFixed(1) + ' m';
+                    document.getElementById('max-speed').textContent = 'Max Speed: ' + data.maxSpeed.toFixed(1) + ' km/h';
+                    document.getElementById('max-acceleration').textContent = 'Max Acceleration: ' + data.maxAcceleration.toFixed(1) + ' km/h/s';
+                    document.getElementById('time-0-100').textContent = '0-100 km/h: ' + data.time0to100.toFixed(1) + ' s';
+                    document.getElementById('time-100-200').textContent = '100-200 km/h: ' + data.time100to200.toFixed(1) + ' s';
+                    document.getElementById('eighth-mile').textContent = '1/8 Mile: ' + data.eighthMileTime.toFixed(1) + ' s @ ' + data.eighthMileSpeed.toFixed(1) + ' km/h';
+                    document.getElementById('quarter-mile').textContent = '1/4 Mile: ' + data.quarterMileTime.toFixed(1) + ' s @ ' + data.quarterMileSpeed.toFixed(1) + ' km/h';
+                    // Update speed intervals
+                    const intervalsContainer = document.getElementById('speed-intervals');
+                    intervalsContainer.innerHTML = '';
+                    data.speedIntervals.forEach(interval => {
+                        const div = document.createElement('div');
+                        div.className = 'metric ' + (interval.completed ? 'completed' : 'incomplete');
+                        const intervalText = interval.startSpeed + '-' + interval.endSpeed + ' km/h: ' + interval.time.toFixed(1) + 's' + 
+                            (interval.completed ? ' @ ' + interval.speedReached.toFixed(1) + ' km/h' : '');
+                        div.innerHTML = '<span class="interval">' + intervalText + '</span>';
+                        intervalsContainer.appendChild(div);
+                    });
+                    // Update run history
+                    const historyDiv = document.getElementById('history');
+                    historyDiv.innerHTML = '';
+                    
+                    if (data.runHistory && data.runHistory.length > 0) {
+                        data.runHistory.forEach((run, index) => {
+                            const runDiv = document.createElement('div');
+                            runDiv.className = 'run';
+                            runDiv.innerHTML = `
+                                <h3>Run ${index + 1}</h3>
+                                <div class="run-grid">
+                                    <div>0-100 km/h: ${run.time0to100 ? run.time0to100.toFixed(2) + 's' : 'N/A'}</div>
+                                    <div>100-200 km/h: ${run.time100to200 ? run.time100to200.toFixed(2) + 's' : 'N/A'}</div>
+                                    <div>1/8 Mile: ${run.eighthMileTime ? run.eighthMileTime.toFixed(2) + 's' : 'N/A'} @ ${run.eighthMileSpeed ? run.eighthMileSpeed.toFixed(1) + ' km/h' : 'N/A'}</div>
+                                    <div>1/4 Mile: ${run.quarterMileTime ? run.quarterMileTime.toFixed(2) + 's' : 'N/A'} @ ${run.quarterMileSpeed ? run.quarterMileSpeed.toFixed(1) + ' km/h' : 'N/A'}</div>
+                                    <div>Max Speed: ${run.maxSpeed ? run.maxSpeed.toFixed(1) + ' km/h' : 'N/A'}</div>
+                                    <div>Max Acceleration: ${run.maxAcceleration ? run.maxAcceleration.toFixed(1) + ' km/h/s' : 'N/A'}</div>
+                                    <div>Road Slope: ${run.roadSlope ? run.roadSlope.toFixed(1) + '°' : 'N/A'}</div>
+                                    <div>Altitude Gain: ${run.altitudeGain ? run.altitudeGain.toFixed(1) + 'm' : 'N/A'}</div>
+                                </div>
+                            `;
+                            historyDiv.appendChild(runDiv);
+                        });
+                    } else {
+                        historyDiv.innerHTML = '<p>No previous runs recorded</p>';
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+        // Initial update
+        updateData();
+        // Set up periodic updates
+        setInterval(updateData, 250);
+    </script>
+</head>
+<body>
+    <div class='connection-info'>
+        <h2>Connection Information</h2>
+        <p>SSID: <strong>ESP32Dragy</strong></p>
+        <p>Password: <strong>dragy1234</strong></p>
+        <p>IP Address: <strong>192.168.4.1</strong></p>
+    </div>
+
+    <div class='speed-display'>
+        <span id='speed'>0.0</span>
+        <span class='speed-unit'> km/h</span>
+    </div>
+
+    <h1>GPS Status</h1>
+    <div class='gps-grid'>
+        <div id='gps-connection' class='gps-status gps-disconnected'>GPS Module: Disconnected</div>
+        <div id='gps-fix' class='gps-status gps-no-fix'>GPS Fix: No Fix</div>
+        <div id='satellites' class='metric'>Satellites: 0</div>
+        <div id='accuracy' class='metric'>Accuracy: Poor</div>
+        <div id='latitude' class='metric gps-location' style='display:none;'>Latitude: 0.000000°</div>
+        <div id='longitude' class='metric gps-location' style='display:none;'>Longitude: 0.000000°</div>
+        <div id='altitude' class='metric gps-location' style='display:none;'>Altitude: 0.0 m</div>
+    </div>
+
+    <h1>Current Run</h1>
+    <div class='current-run-grid'>
+        <div id='recording-status' class='metric recording-status' style='display:none;'>Recording in progress...</div>
+        <div id='road-slope' class='metric'>Road Slope: 0.0°</div>
+        <div id='altitude-gain' class='metric'>Altitude Gain: 0.0 m</div>
+        <div id='max-speed' class='metric'>Max Speed: 0.0 km/h</div>
+        <div id='max-acceleration' class='metric'>Max Acceleration: 0.0 km/h/s</div>
+        <div id='time-0-100' class='metric'>0-100 km/h: 0.0 s</div>
+        <div id='time-100-200' class='metric'>100-200 km/h: 0.0 s</div>
+        <div id='eighth-mile' class='metric'>1/8 Mile: 0.0 s @ 0.0 km/h</div>
+        <div id='quarter-mile' class='metric'>1/4 Mile: 0.0 s @ 0.0 km/h</div>
+    </div>
+
+    <h2>Speed Intervals</h2>
+    <div id='speed-intervals' class='speed-intervals'></div>
+
+    <div class='run-history'>
+        <h2>Previous Runs</h2>
+        <div id='history'></div>
+    </div>
+</body>
+</html> 
