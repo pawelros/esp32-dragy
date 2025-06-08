@@ -125,6 +125,8 @@
                     } else {
                         historyDiv.innerHTML = '<p>No previous runs recorded</p>';
                     }
+                    // Update NAV-VELNED message counter
+                    document.getElementById('nav-velned-count').textContent = 'NAV-VELNED Messages: ' + data.navVelnedCount;
                 })
                 .catch(error => console.error('Error:', error));
         }
@@ -153,6 +155,7 @@
         <div id='gps-fix' class='gps-status gps-no-fix'>GPS Fix: No Fix</div>
         <div id='satellites' class='metric'>Satellites: 0</div>
         <div id='accuracy' class='metric'>Accuracy: Poor</div>
+        <div id='nav-velned-count' class='metric'>NAV-VELNED Messages: 0</div>
         <div id='latitude' class='metric gps-location' style='display:none;'>Latitude: 0.000000°</div>
         <div id='longitude' class='metric gps-location' style='display:none;'>Longitude: 0.000000°</div>
         <div id='altitude' class='metric gps-location' style='display:none;'>Altitude: 0.0 m</div>
